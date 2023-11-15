@@ -466,7 +466,7 @@ MATRIX.
             /clabels = "Cluster", "Item", "Angle", "Communality",  "Item-cluster spacing ", "Distance to cluster center (0-1)".
 
         print /Title = "Range of all Cluster-Circ coefficients: 0-1 (0 = perfect circumplex spacing).".
-        print  /Title = "The decision for the final item clusters is based on overall 'spacing (with h²').".
+        print  /Title = "The decision for the final item clusters is based on overall 'spacing (with h²)'.".
         print  /Title = "The manuscript that presents Cluster-Circ has been submitted to a peer-reviewed journal.".
         print /Title = "When using Cluster-Circ, please cite the preprint version at the current stage of the publication process:".
         print /Title = "Weide et al. (2022): Cluster-Circ: Finding item clusters for circumplex instruments. PsyArxiv (preprint). https://psyarxiv.com/yf37w/.". 
