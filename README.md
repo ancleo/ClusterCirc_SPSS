@@ -83,4 +83,4 @@ peer-review).
 ClusterCirc can also be performed in R by installing and loading the
 associated R package from github: 
 
-https://github.com/anweide/ClusterCirc
+https://github.com/ancleo/ClusterCirc
