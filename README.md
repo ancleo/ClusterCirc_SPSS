@@ -71,12 +71,14 @@ You only need to insert the working directory of your device to perform ClusterC
 
 The manuscript that presents Cluster-Circ has been submitted to a peer-
 reviewed journal. When using Cluster-Circ, please cite the preprint version 
-at the current stage of the publication process: 
-
-https://psyarxiv.com/yf37w/
+at the current stage of the publication process:
 
 (Note to reviewers: Please don't open the preprint article to ensure double-blind
 peer-review).
+
+https://psyarxiv.com/yf37w/
+
+
 
 ## ClusterCirc in R
 
