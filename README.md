@@ -73,8 +73,10 @@ The manuscript that presents Cluster-Circ has been submitted to a peer-
 reviewed journal. When using Cluster-Circ, please cite the preprint version 
 at the current stage of the publication process: 
 
-Weide et al. (2022): Cluster-Circ: Finding item clusters for circumplex 
-instruments. PsyArxiv (preprint). https://psyarxiv.com/yf37w/
+https://psyarxiv.com/yf37w/
+
+(Note to reviewers: Please don't open the preprint article to ensure double-blind
+peer-review).
 
 ## ClusterCirc in R
 
