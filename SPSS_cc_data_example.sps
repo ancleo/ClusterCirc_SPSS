@@ -469,7 +469,8 @@ MATRIX.
         print  /Title = "The decision for the final item clusters is based on overall 'spacing (with h²)'.".
         print  /Title = "The manuscript that presents Cluster-Circ has been submitted to a peer-reviewed journal.".
         print /Title = "When using Cluster-Circ, please cite the preprint version at the current stage of the publication process:".
-        print /Title = "https://psyarxiv.com/yf37w/.". 
+        print /Title = "https://psyarxiv.com/yf37w/.".
+        print /Title = "Note to reviewers: Please don't open the preprint link for blind peer-review".
 
     end if.
 
