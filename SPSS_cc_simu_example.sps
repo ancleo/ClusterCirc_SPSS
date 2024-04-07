@@ -1,4 +1,4 @@
-﻿* Encoding: UTF-8.
+* Encoding: UTF-8.
 
 ****************************************************************************************
     *** CLUSTER-CIRC SIMU: cc_simu
@@ -9,18 +9,21 @@
     *** Performs Cluster-Circ on the simulated data for comparison with results
     *** from Cluster-Circ Data. cc_simu can only be used after performing cc_data.
 
+    *** Note: Character set encoding must be Unicode.
 
 ********************************************************************************************************************
     *** INSERTIONS: FILL IN SPECIFICATIONS OF YOUR DATA: DEMONSTRATION ON EXEMPLARY DATA
 ********************************************************************************************************************
     *** Replace each element with "$INSERT" with the relevant information from your data
     
-    *** $INSERT_path:            Working directory/path with the dataset and where ClusterCirc results should be saved. Same as in cc_data (line 26).
-    *** $INSERT_n:                  Number of subjects in the sample (line 42)
+    *** $INSERT_path:            Working directory/path with the dataset and where ClusterCirc results should be saved. Same as in cc_data (line 29).
+    *** $INSERT_n:                  Number of subjects in the sample (line 46)
     *** $INSERT_samples:    Number of samples for the simulation. Recommendation: 100-500 (depending on computing capacity).
-    ***                                          Must be inserted two times (lines 36, 43).
-    *** $INSERT_m+2:            Number of items in the data + 2 (e.g. 20 if your data has 18 items). Needs to be inserted 3 times (lines 46; 63; 70)
-    
+    ***                                          Must be inserted two times (lines 39, 47).
+    *** $INSERT_m+2:            Number of items in the data + 2 (e.g. 20 if your data has 18 items). Must be inserted 3 times (lines 50; 67; 74)
+    ***alpha:                              Type-I error in percent for significance testing of deviation from perfect circumplexity in the data. 
+    ***                                         Alpha can be adjusted. Options: 0.1, 1, 5, 10, 15, 20, 25. Default = 1 (%) (line 40)
+
     *** Here: Only $INSERT_path needs to be replaced. Otherwise, parameters for the exemplary data (n = 300,  18 variables -> m+2 = 20 ) and samples = 500 are used.
 
 cd "$INSERT_path".
@@ -34,6 +37,7 @@ cd "$INSERT_path".
  
 get file = "help_CC_data.sav".
 compute samples = 500.
+compute alpha = 1.
 save outfile = "help_CC_data.sav".
 
 SET RNG=MT MTINDEX=3391001000 workspace=200000 MXLOOPS=300000000.
@@ -756,8 +760,9 @@ MATRIX.
 
     get A_Pop /variables F1 F2 /file = "Pop_A.sav".
     get A_all /file "Simu_A.sav".
-    get spch_dat /variables spacingh /file = "help_CC_data.sav".
+    get spch_dat /variables spacingw /file = "help_CC_data.sav".
     get n_simu /variables samples /file = "help_CC_data.sav".
+    get alpha /variables alpha /file = "help_CC_data.sav".
     get p /variables p /file = "help.sav".
     get m /variables m /file = "help.sav".
     get n /variables n /file = "help.sav".
@@ -1218,8 +1223,32 @@ MATRIX.
 
     compute spch_sim = mn_simu(1,1).
     compute spch_sd = sd_simu(1,1).
-    compute cutoff = spch_sim + 2.33*spch_sd.
+    compute emp_z = (spch_dat - spch_sim) / spch_sd.
+
+    do if alpha = 25.
+        compute cutoff = spch_sim + 0.67 * spch_sd.
+    end if.
+    do if alpha = 20.
+        compute cutoff = spch_sim + 0.84 * spch_sd.
+    end if.
+    do if alpha = 15.
+        compute cutoff = spch_sim + 1.04 * spch_sd.
+    end if.
+    do if alpha = 10.
+        compute cutoff = spch_sim + 1.28 * spch_sd.
+    end if.
+    do if alpha = 5.
+        compute cutoff = spch_sim + 1.65 * spch_sd.
+    end if.
+    do if alpha = 1.
+        compute cutoff = spch_sim + 2.33 * spch_sd.
+    end if.
+    do if alpha = 0.1.
+        compute cutoff = spch_sim + 3.09 * spch_sd.
+    end if.
+
     compute comp = cutoff - spch_dat.
+    compute fit = {spch_dat; spch_sim; cutoff; alpha; emp_z}.
 
     compute overall = {mn_simu; sd_simu; min_simu; max_simu}.
 
@@ -1241,26 +1270,28 @@ MATRIX.
         /rlabels = "Mean", "SD", "Minimum", "Maximum"
         /clabels = "Spacing (with h²)", "Spacing", "Between-cluster spacing",  "Within-cluster proximity ".
 
-    print spch_dat
-        /clabels = "Spacing (with h²)"
-        /rlabels = "in data".
+     print /Title = "Range of all Cluster-Circ coefficients: 0-1 (0 = perfect circumplex spacing).".
 
-    print /Title = "Recommendation: Circumplex fit of the empirical data is acceptable if 'spacing (with h²) in the empirical data is not larger than ".
-    print /Title = "mean 'spacing (with h²)' + 2.33 SD from the simulated samples in Cluster-Circ Simu (corresponding to the cumulative".
-    print /Title = "probability of the standard normal distribution for p < .01, one-tailed).".
+    print /Title = "Recommendation: Circumplex fit of the empirical data is acceptable if 'spacing (weighted with h²) in the empirical data is".
+    print /Title = "not larger than the cutoff value of the distribution of the simulated 'spacing (weighted with h²)' values. ClusterCirc-Simu".
+    print /Title = "uses the chosen alpha level and the cumulative probability of the standard normal distribution (one-tailed) to assess model fit.".
+
+    print fit
+        /clabels = "Model fit"
+        /rlabels = "Spacing (with h²) - data", "Mean spacing (with h²) - simulation","Cutoff value", "Alpha (%)", "Empirical z-value".
 
     do if comp >= 0.
-        print /Title = "Here: Empirical 'spacing (with h²)' is within mean-spc_h + 2.33 SD from Cluster-Circ-Simu --> Circumplex fit acceptable.".
+        print /Title = "Here: Empirical 'spacing (with h²)' is within the acceptance region of the simulated spc_h distribution:".
+     print /Title = "Circumplex fit acceptable.".
     else if comp < 0.
-        print /Title = "Here: Empirical 'spacing (with h²)' is larger than mean-spc_h + 2.33 SD from Cluster-Circ-Simu --> Low circumplex fit".
+        print /Title = "Here: Empirical 'spacing (with h²)' exceeds the cutoff value of the simulated spc_h distribution:".
+    print /Title = "Low circumplex fit.".
     end if.
 
-     print /Title = "Range of all Cluster-Circ coefficients: 0-1 (0 = perfect circumplex spacing).".
-     print  /Title = "The decision for the final item clusters is based on overall 'spacing (with h²').".
-     print  /Title = "The manuscript that presents Cluster-Circ has been submitted to a peer-reviewed journal.".
-     print /Title = "When using Cluster-Circ, please cite the preprint version at the current stage of the publication process:".
-     print /Title = "https://psyarxiv.com/yf37w/.".
-     print /Title = "Note to reviewers: Please don't open the preprint link for blind peer-review".
+     print /Title = " ".
+     print  /Title = "The manuscript that presents ClusterCirc has been submitted to a peer-reviewed journal.".
+     print /Title = "When using ClusterCirc, please cite the preprint version at the current stage of the publication process:".
+     print /Title = "https://psyarxiv.com/yf37w/.". 
 
 END MATRIX.
 
