@@ -1,5 +1,4 @@
-﻿* Encoding: UTF-8.
-
+* Encoding: UTF-8.
 ***************************************************************************************
     *** CLUSTER-CIRC: SORTING ITEMS INTO CIRCUMPLEX-CLUSTERS
 ***************************************************************************************
@@ -21,11 +20,12 @@
     *** $INSERT_p:               Desired number of clusters. Minimum = 2 (line 38)
     *** $INSERT_m:              Number of variables (line 39)
     *** $INSERT_n:               Sample size (line 40)
-    *** $INSERT_data:         Name of the data file with the items, ending ".sav"; the dataset should only contain the items on which Cluster-Circ should be performed (line 49)
-    
+    *** $INSERT_data:         Name of the data file with the items, ending ".sav"; the dataset should only contain the items on which Cluster-Circ should be performed (line 51)
     *** q:                                  Precision index for the algorithm. Precision is higher for larger values. Default = 10. 
     ***                                      q can be adjusted to increase the precision of the algorithm. Must be an integer > 0 (line 41).
-
+    *** w_com:                       Is "TRUE" if items are weighted by their communalities. If different weights should be used, change to "FALSE" (line 43).
+    *** weights:                      If different weights (other than item communalities) should be used, save a data file called "weights.sav" in the working directory 
+    ***                                       containing a single vector with weights for the items (is called in line 109).
     *** Here: Only $INSERT_path needs to be replaced. Otherwise, the exemplary data 'data_ex.sav' and its parameters (p = 3, m = 18, n = 300, q = 10) are used.
 
 cd "$INSERT_path".
@@ -39,6 +39,8 @@ input program.
         compute m = 18.
         compute n =  300.
         compute q = 10.
+        string w_com (a10).
+        compute w_com = 'TRUE'.
         end case.
     end loop.
     end file.
@@ -47,11 +49,7 @@ execute.
 save outfile = "help.sav".
 
 get file = "data_ex.sav".
-
-*********************************
-    *** END OF INSERTIONS
-*********************************
-
+    
 ********************************************************************
     *** PCA FOR INITIAL LOADING ON CIRCUMPLEX AXES
 ********************************************************************
@@ -80,7 +78,7 @@ output close *.
 set mxloops = 300000000000.
 set mdisplay TABLES.
 
-get file = "IAL_sort_items.sav".
+get file = "Data_A.sav".
 
 MATRIX.
 
@@ -88,6 +86,7 @@ MATRIX.
     get p /variables p /file = "help.sav".
     get m /variables m /file = "help.sav".
     get q /variables q /file = "help.sav".
+    get w_com /variables w_com /file ="help.sav".
 
     *************************
         *** PREPARATION
@@ -96,10 +95,21 @@ MATRIX.
 
     compute h_sq = mdiag(rssq(A)).
     compute h_rt = sqrt(h_sq).
-    compute h_sqv = rsum(h_sq).
     compute h_rtv = rsum(h_rt).
     compute hsq_mn = msum(h_sq)*(1/m).
     compute A_k = inv(h_rt)*A.
+
+        * Define item weights:
+
+    do if w_com = "TRUE".
+        compute w = rsum(h_sq).
+    end if.
+
+    do if w_com = "FALSE".
+        get w /file = "weights.sav".
+    end if.
+
+    compute w_mn = csum(w)/m.
 
         * Compute and sort theta: item angles in degrees
         * r = radians, p = positive
@@ -138,7 +148,7 @@ MATRIX.
             do if rk_th(i1) = i2.
                 compute ival(i2,2) = theta(i1).
                 compute ival(i2,1) = i1.
-                compute ival(i2,3) = h_sqv(i1).
+                compute ival(i2,3) = w(i1).
             end if.
         end loop.
     end loop.
@@ -147,7 +157,7 @@ MATRIX.
         *** CLUSTER-CIRC ALGORITHM
     ***********************************************
     
-    compute spacingh = 361.
+    compute spacingw = 361.
 
      LOOP d = 0 to rnd(360*q/p).
 
@@ -308,19 +318,19 @@ MATRIX.
         compute space = 360/p.
         compute ic_dev = make(m,p,0).
         compute ic_devp = make(m,p,0).
-        compute ic_dcom = make(m,p,0).
+        compute ic_dw = make(m,p,0).
 
         loop i = 1 to m.
             loop c1 = 1 to p.
                 compute c2 = ival_h(i,1).
                 compute i_ang =  ival_h(i,3).
                 compute c_ang = cvalh(c1,3).
-                compute i_com = ival_h(i,4).
+                compute i_w = ival_h(i,4).
                 compute ic_dis(i,c1) = i_ang - c_ang.
                 compute id_dis = (c2-1)*space - (c1-1)*space.
                 compute ic_dev(i,c1) = ic_dis(i,c1) - id_dis.
                 compute ic_devp(i,c1) = ic_dev(i,c1)/space.
-                compute ic_dcom(i,c1) = ic_devp(i,c1)* sqrt(i_com).
+                compute ic_dw(i,c1) = ic_devp(i,c1)* sqrt(i_w).
             end loop.
         end loop.
 
@@ -331,29 +341,29 @@ MATRIX.
 
         * With communalities (h) for spacing index (not interpretable on item level)
 
-        compute ispc_hsq = rssq(ic_dcom)/(p*hsq_mn).
-        compute ispc_h = sqrt(ispc_hsq).
+        compute ispc_wsq = rssq(ic_dw)/(p*w_mn).
+        compute ispc_w = sqrt(ispc_wsq).
 
         * Overall spacing
 
         compute spc_sq  = csum(ispc_sq)/m.
         compute spc = sqrt(spc_sq).
 
-        compute spc_hsq = csum(ispc_hsq)/m.
-        compute spc_h = sqrt(spc_hsq).
+        compute spc_wsq = csum(ispc_wsq)/m.
+        compute spc_w = sqrt(spc_wsq).
 
-        * Dismiss partitions with empty clusters by making spc_h larger than
-        * the initial spacingh (361). If this happens for all possible divisions,
+        * Dismiss partitions with empty clusters by making spc_w larger than
+        * the initial spacingw (361). If this happens for all possible divisions,
         * the number of clusters is too large.
 
         loop c = 1 to p.
             do if c_m(c) = 99.
-                compute spc_h = 50000.
+                compute spc_w = 50000.
             end if.
         end loop.
 
-        do if spc_h < spacingh.
-            compute spacingh = spc_h.
+        do if spc_w < spacingw.
+            compute spacingw = spc_w.
             compute spacing  = spc.
             compute items = {ival_h, ispc}.
             compute clusters = cvalh.
@@ -362,10 +372,10 @@ MATRIX.
 
     END LOOP.
 
-    do if spacingh = 361.
+    do if spacingw = 361.
         print/Title "Cluster-Circ could not finish, at least one of the clusters is empty. Try a smaller number of clusters or include more variables.".
 
-    else if spacingh < 361.
+    else if spacingw < 361.
 
     * Between-cluster spacing
 
@@ -443,34 +453,35 @@ MATRIX.
 
         * Final overall Cluster-Circ indices
         
-        compute overall = {spacingh, spacing,  bcs_p, wcp_p}.
+        compute overall = {spacingw, spacing,  bcs_p, wcp_p}.
     
         * Parameters for cc_simu
 
         compute c_wrange = clusters(:,4).
         compute wrange_c = csum(c_wrange)/p.
 
-        save {hsq_mn, wrange_c, spacingh}  /outfile = "help_CC_data.sav"
-            /variables hsq_mn wrange_c spacingh.
+        save {hsq_mn, wrange_c, spacingw}  /outfile = "help_CC_data.sav"
+            /variables hsq_mn wrange_c spacingw.
 
         print  /Title = "RESULTS CLUSTER-CIRC DATA:".
 
         print overall
             /rlabels = " "
-            /clabels = "Spacing (with h²)", "Spacing", "Between-cluster spacing",  "Within-cluster proximity ".
+            /clabels = "Spacing (weighted)", "Spacing", "Between-cluster spacing",  "Within-cluster proximity ".
 
         print clusters
             /clabels = "Cluster", "Items", "Angle", "Range",  "Between-cluster spacing ",  "Within-cluster proximity".
 
         print items
-            /clabels = "Cluster", "Item", "Angle", "Communality",  "Item-cluster spacing ", "Distance to cluster center (0-1)".
+            /clabels = "Cluster", "Item", "Angle", "Weight (default = communality",  "Item-cluster spacing ", "Distance to cluster center (0-1)".
 
         print /Title = "Range of all Cluster-Circ coefficients: 0-1 (0 = perfect circumplex spacing).".
-        print  /Title = "The decision for the final item clusters is based on overall 'spacing (with h²)'.".
+        print  /Title = "The decision for the final item clusters is based on overall 'spacing (weighted)'.".
+        print  /Title = "Weights are item communalities if not otherweise specified to account for (un-)reliability of measurement.".
         print  /Title = "The manuscript that presents Cluster-Circ has been submitted to a peer-reviewed journal.".
         print /Title = "When using Cluster-Circ, please cite the preprint version at the current stage of the publication process:".
-        print /Title = "https://psyarxiv.com/yf37w/.".
-        print /Title = "Note to reviewers: Please don't open the preprint link for blind peer-review".
+        print /Title = "(Note to reviewers: Please don't open the link below to ensure double-blind peer-review)".
+        print /Title = "https://psyarxiv.com/yf37w/.". 
 
     end if.
 
