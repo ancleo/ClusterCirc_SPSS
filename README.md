@@ -44,9 +44,10 @@ ClusterCirc can be performed in SPSS by using the syntax files from this reposit
     - p = Desired number of clusters
     - m = Number of variables
     - n = Sample size
-    - data = data file on which ClusterCirc should be performed
+    - data = Data file on which ClusterCirc should be performed
+    - weights = Item weights (optional, default = communalities)
   
-3.  **cc_simu: (SPSS_cc_simu_INSERT.sps)**  
+2.  **cc_simu: (SPSS_cc_simu_INSERT.sps)**  
     Can be used to assess circumplex fit of the dataset.
     The function uses the specifications of the data and creates samples
     from a population with perfect circumplex spacing of clusters.
@@ -60,10 +61,28 @@ ClusterCirc can be performed in SPSS by using the syntax files from this reposit
     - n = Sample size
     - samples = Number of samples for the simulation. Recommendation: 100-500. Needs to be inserted two times.
     - m+2 = Number of items in the data + 2. Needs to be inserted three times.
-  
+    - alpha = Type-I error in percent for significance testing of circumplex model fit (default = 1%)
+
+3. **cc_fix: (SPSS_cc_fix_INSERT.sps)**  
+    Computes ClusterCirc coefficients for user-defined item clusters
+    without performing the ClusterCirc search algorithm to find item clusters.
+    ClusterCirc-fix coefficients for user-defined item clusters can be compared
+    to ClusterCirc coefficients for item clusters found by ClusterCirc-Data.
+
+    Follow the instructions in the comments above the code. You need to insert the following
+    parameters of your data in the code:
+    - working directory/path
+    - p = Desired number of clusters
+    - m = Number of variables
+    - n = Sample size
+    - data = Data file on which ClusterCirc should be performed
+    - limits = Column vector with the position of the last item of each cluster
+    - weights = Item weights (optional, default = communalities), like in cc_data
+      
 ### Usage for exemplary data:
 - SPSS_cc_data_example.sps
 - SPSS_cc_simu_example.sps
+- SPSS_cc_fix_example.sps
 
 You only need to insert the working directory of your device to perform ClusterCirc with the example codes.
 
@@ -71,14 +90,12 @@ You only need to insert the working directory of your device to perform ClusterC
 
 The manuscript that presents Cluster-Circ has been submitted to a peer-
 reviewed journal. When using Cluster-Circ, please cite the preprint version 
-at the current stage of the publication process:
-
-(Note to reviewers: Please don't open the preprint article to ensure double-blind
-peer-review).
+at the current stage of the publication process: 
 
 https://psyarxiv.com/yf37w/
 
-
+(Note to reviewers: Please don't open the preprint article to ensure double-blind
+peer-review).
 
 ## ClusterCirc in R
 
