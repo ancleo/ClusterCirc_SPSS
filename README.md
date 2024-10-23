@@ -11,7 +11,7 @@ structure. It can be used to find item clusters with optimal circumplex
 spacing as an alternative to other clustering techniques like
 conventional cluster analysis.
 
-ClusterCirc can be applied to raw data or on item loadings on two
+ClusterCirc in SPSS can be applied to raw data or on item loadings on two
 orthogonal factors or components from principal component analysis,
 exploratory or confirmatory factor analysis. If ClusterCirc is used on
 raw data, principal component analysis is performed before ClusterCirc
@@ -46,6 +46,8 @@ ClusterCirc can be performed in SPSS by using the syntax files from this reposit
     - n = Sample size
     - data = Data file on which ClusterCirc should be performed
     - weights = Item weights (optional, default = communalities)
+    - e = Index that weighs the importance of within-cluster proximity vs. equal between-cluster
+          spacing (optional, default = 1/p, weighing all clusters equally)
   
 2.  **cc_simu: (SPSS_cc_simu_INSERT.sps)**  
     Can be used to assess circumplex fit of the dataset.
@@ -78,6 +80,8 @@ ClusterCirc can be performed in SPSS by using the syntax files from this reposit
     - data = Data file on which ClusterCirc should be performed
     - limits = Column vector with the position of the last item of each cluster
     - weights = Item weights (optional, default = communalities), like in cc_data
+    - e = Index that weighs the importance of within-cluster proximity vs. equal between-cluster
+          spacing (optional, default = 1/p, weighing all clusters equally)
       
 ### Usage for exemplary data:
 - SPSS_cc_data_example.sps
@@ -99,7 +103,7 @@ peer-review).
 
 ## ClusterCirc in R
 
-ClusterCirc can also be performed in R by installing and loading the
+ClusterCirc can also be performed in R with some additional options by installing and loading the
 associated R package from github: 
 
 https://github.com/ancleo/ClusterCirc
