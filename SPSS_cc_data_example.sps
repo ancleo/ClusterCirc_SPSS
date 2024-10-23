@@ -1,14 +1,14 @@
 * Encoding: UTF-8.
+* Encoding: .
 ***************************************************************************************
     *** CLUSTER-CIRC: SORTING ITEMS INTO CIRCUMPLEX-CLUSTERS
 ***************************************************************************************
-
 ******************************************
     *** CLUSTER-CIRC DATA: cc_data
 ******************************************
     *** Finds item clusters with optimal circumplex spacing in your data. 
     *** PCA without rotation will be performed before running Cluster-Circ (option in R: analyze loadings directly).
-    *** cc_data can read an SPSS data-sheet (“.sav”) with the items that should be included into the analysis.
+    *** cc_data can read an SPSS data-sheet (.sav) with the items that should be included into the analysis.
     *** cc_data can be performed on any number of items that is compatible with the SPSS requirements. Listwise deletion of missings if not otherwise specified.
 
 *********************************************************************************************************************
@@ -16,16 +16,19 @@
 *********************************************************************************************************************
     *** Replace each element with "$INSERT" with the relevant information from your data
     
-    *** $INSERT_path:         Working directory/path with the dataset and where the results of Cluster-Circ should be saved (line 31)
-    *** $INSERT_p:               Desired number of clusters. Minimum = 2 (line 38)
-    *** $INSERT_m:              Number of variables (line 39)
-    *** $INSERT_n:               Sample size (line 40)
-    *** $INSERT_data:         Name of the data file with the items, ending ".sav"; the dataset should only contain the items on which Cluster-Circ should be performed (line 51)
+    *** $INSERT_path:         Working directory/path with the dataset and where the results of Cluster-Circ should be saved (line 34)
+    *** $INSERT_p:               Desired number of clusters. Minimum = 2 (line 41)
+    *** $INSERT_m:              Number of variables (line 42)
+    *** $INSERT_n:               Sample size (line 43)
+    *** $INSERT_data:         Name of the data file with the items, ending ".sav"; the dataset should only contain the items on which Cluster-Circ should be performed (line 56)
     *** q:                                  Precision index for the algorithm. Precision is higher for larger values. Default = 10. 
-    ***                                      q can be adjusted to increase the precision of the algorithm. Must be an integer > 0 (line 41).
-    *** w_com:                       Is "TRUE" if items are weighted by their communalities. If different weights should be used, change to "FALSE" (line 43).
+    ***                                      q can be adjusted to increase the precision of the algorithm. Must be an integer > 0 (line 45).
+    *** w_com:                       Is "1" if items are weighted by their communalities. If different weights should be used, change to "0" (line 46).
     *** weights:                      If different weights (other than item communalities) should be used, save a data file called "weights.sav" in the working directory 
-    ***                                       containing a single vector with weights for the items (is called in line 109).
+    ***                                       containing a single vector with weights for the items (is called in line 111).
+    *** e                                   Cluster weight (0 <= e <= 1) defining the importance of within-cluster proximity versus equal cluster spacing. Default is 1/p, weighing all
+    ***                                       clusters equally. e = 0: Maximum importance of between-cluster spacing, within-cluster proximity is ignored. e = 1: Maximum importance of 
+    ***                                       within-cluster proximity, between-cluster spacing is ignored. (line 44)
     *** Here: Only $INSERT_path needs to be replaced. Otherwise, the exemplary data 'data_ex.sav' and its parameters (p = 3, m = 18, n = 300, q = 10) are used.
 
 cd "$INSERT_path".
@@ -38,15 +41,17 @@ input program.
         compute p =  3.
         compute m = 18.
         compute n =  300.
+        compute e = 1/p.
         compute q = 10.
-        string w_com (a10).
-        compute w_com = 'TRUE'.
+        compute w_com = 1.
         end case.
     end loop.
     end file.
 end input program.
 execute.
 save outfile = "help.sav".
+
+get file = "help.sav".
 
 get file = "data_ex.sav".
     
@@ -99,15 +104,40 @@ MATRIX.
     compute hsq_mn = msum(h_sq)*(1/m).
     compute A_k = inv(h_rt)*A.
 
-        * Define item weights:
+        * Define item weights as communalities:
 
-    do if w_com = "TRUE".
+    do if w_com = 1.
         compute w = rsum(h_sq).
+        save w /variables weights /outfile = "weights.sav".
     end if.
 
-    do if w_com = "FALSE".
-        get w /file = "weights.sav".
-    end if.
+END MATRIX.
+
+
+set mxloops = 300000000000.
+set mdisplay TABLES.
+
+get file = "Data_A.sav".
+
+MATRIX.
+
+    get A /file="Data_A.sav".
+    get p /variables p /file = "help.sav".
+    get m /variables m /file = "help.sav".
+    get q /variables q /file = "help.sav".
+    get e /variables e /file = "help.sav".
+    get w /variables weights /file ="weights.sav".
+
+*************************
+        *** PREPARATION
+    *************************
+        * Kaiser-normalization of loadings for simpler computation of angles
+
+    compute h_sq = mdiag(rssq(A)).
+    compute h_rt = sqrt(h_sq).
+    compute h_rtv = rsum(h_rt).
+    compute hsq_mn = msum(h_sq)*(1/m).
+    compute A_k = inv(h_rt)*A.
 
     compute w_mn = csum(w)/m.
 
@@ -154,7 +184,7 @@ MATRIX.
     end loop.
 
     ***********************************************
-        *** CLUSTER-CIRC ALGORITHM
+        *** CLUSTERCIRC ALGORITHM
     ***********************************************
     
     compute spacingw = 361.
@@ -169,7 +199,7 @@ MATRIX.
         compute c_rng = make(p,1,0).
         compute c_ang = make(p,1,0).
 
-        * Check if item falls within the range of a cluster. Adjust for max. 360°.
+        * Check if item falls within the range of a cluster. Adjust for max. 360Â°.
 
         loop c = 1 to p.
             loop i = 1 to m.
@@ -232,8 +262,8 @@ MATRIX.
                 compute c_ang(c) = (c_max(c)+c_min(c))/2.
                 compute c_rng(c) = c_max(c)-c_min(c).
             end if.
-      
-            * Special case: Cluster at approx. 0° could have a range of > 180.
+
+            * Special case: Cluster at approx. 0Â° could have a range of > 180.
             * Change item angles with help objects.
 
             do if c_max(c)-c_min(c) > 180.
@@ -312,25 +342,38 @@ MATRIX.
             end loop.
         end loop.
 
-        * Compute spacing_h for each division
+        * Compute spacing_w for each division
 
         compute ic_dis = make(m,p,0).
         compute space = 360/p.
         compute ic_dev = make(m,p,0).
         compute ic_devp = make(m,p,0).
         compute ic_dw = make(m,p,0).
+        compute ic_dwe = make(m,p,0).
 
         loop i = 1 to m.
             loop c1 = 1 to p.
+
                 compute c2 = ival_h(i,1).
                 compute i_ang =  ival_h(i,3).
                 compute c_ang = cvalh(c1,3).
                 compute i_w = ival_h(i,4).
+                compute e_own = e.
+                compute e_others = (1-e)/(p-1).
                 compute ic_dis(i,c1) = i_ang - c_ang.
                 compute id_dis = (c2-1)*space - (c1-1)*space.
                 compute ic_dev(i,c1) = ic_dis(i,c1) - id_dis.
                 compute ic_devp(i,c1) = ic_dev(i,c1)/space.
                 compute ic_dw(i,c1) = ic_devp(i,c1)* sqrt(i_w).
+
+                do if c1 = c2.
+                    compute ic_dwe(i,c1) = ic_dw(i,c1)*sqrt(e_own).
+                end if.
+
+                do if c1 <> c2.
+                    compute ic_dwe(i,c1) = ic_dw(i,c1)*sqrt(e_others).
+                end if.
+
             end loop.
         end loop.
 
@@ -339,9 +382,9 @@ MATRIX.
         compute ispc_sq = rssq(ic_devp)/p.
         compute ispc = sqrt(ispc_sq).
 
-        * With communalities (h) for spacing index (not interpretable on item level)
+        * With weights for spacing index (not interpretable on item level)
 
-        compute ispc_wsq = rssq(ic_dw)/(p*w_mn).
+        compute ispc_wsq = rssq(ic_dwe)/ w_mn.
         compute ispc_w = sqrt(ispc_wsq).
 
         * Overall spacing
@@ -460,8 +503,8 @@ MATRIX.
         compute c_wrange = clusters(:,4).
         compute wrange_c = csum(c_wrange)/p.
 
-        save {hsq_mn, wrange_c, spacingw}  /outfile = "help_CC_data.sav"
-            /variables hsq_mn wrange_c spacingw.
+        save {hsq_mn, wrange_c, spacingw, e}  /outfile = "help_CC_data.sav"
+            /variables hsq_mn wrange_c spacingw e.
 
         print  /Title = "RESULTS CLUSTER-CIRC DATA:".
 
