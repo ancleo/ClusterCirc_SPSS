@@ -24,7 +24,7 @@
     ***alpha:                              Type-I error in percent for significance testing of deviation from perfect circumplexity in the data. 
     ***                                         Alpha can be adjusted. Options: 0.1, 1, 5, 10, 15, 20, 25. Default = 1 (%) (line 40)
 
-    *** Here: Only $INSERT_path needs to be replaced. Otherwise, parameters for the exemplary data (n = 300,  18 variables -> m+2 = 20 ) and samples = 500 are used.
+
 
 cd "$INSERT_path".
 
@@ -300,6 +300,7 @@ MATRIX.
     get m /variables m /file = "help.sav".
     get q /variables q /file = "help.sav".
     get n /variables n /file = "help.sav".
+    get e /variables e /file = "help_CC_data.sav".
     get n_simu /variables samples /file = "help_CC_data.sav".
     get mc_id /file = "Pop_mc.sav".
 
@@ -313,6 +314,7 @@ MATRIX.
     compute h_sqv = rsum(h_sq).
     compute h_rtv = rsum(h_rt).
     compute hsq_mn = msum(h_sq)*(1/m).
+    compute w_mn = hsq_mn.
     compute A_k = inv(h_rt)*A.
 
         * Compute and sort theta: item angles in degrees
@@ -361,7 +363,7 @@ MATRIX.
         *** CLUSTER-CIRC ALGORITHM
     ***********************************************
     
-    compute spacingh = 361.
+    compute spacingw = 361.
 
      LOOP d = 0 to rnd(360*q/p).
 
@@ -516,25 +518,38 @@ MATRIX.
             end loop.
         end loop.
 
-        * Compute spacing_h for each division
+        * Compute spacing_w for each division
 
         compute ic_dis = make(m,p,0).
         compute space = 360/p.
         compute ic_dev = make(m,p,0).
         compute ic_devp = make(m,p,0).
-        compute ic_dcom = make(m,p,0).
+        compute ic_dw = make(m,p,0).
+        compute ic_dwe = make(m,p,0).
 
         loop i = 1 to m.
             loop c1 = 1 to p.
+
                 compute c2 = ival_h(i,1).
                 compute i_ang =  ival_h(i,3).
                 compute c_ang = cvalh(c1,3).
-                compute i_com = ival_h(i,4).
+                compute i_w = ival_h(i,4).
+                compute e_own = e.
+                compute e_others = (1-e)/(p-1).
                 compute ic_dis(i,c1) = i_ang - c_ang.
                 compute id_dis = (c2-1)*space - (c1-1)*space.
                 compute ic_dev(i,c1) = ic_dis(i,c1) - id_dis.
                 compute ic_devp(i,c1) = ic_dev(i,c1)/space.
-                compute ic_dcom(i,c1) = ic_devp(i,c1)* sqrt(i_com).
+                compute ic_dw(i,c1) = ic_devp(i,c1)* sqrt(i_w).
+
+                do if c1 = c2.
+                    compute ic_dwe(i,c1) = ic_dw(i,c1)*sqrt(e_own).
+                end if.
+
+                do if c1 <> c2.
+                    compute ic_dwe(i,c1) = ic_dw(i,c1)*sqrt(e_others).
+                end if.
+
             end loop.
         end loop.
 
@@ -543,31 +558,31 @@ MATRIX.
         compute ispc_sq = rssq(ic_devp)/p.
         compute ispc = sqrt(ispc_sq).
 
-        * With communalities (h) for spacing index (not interpretable on item level)
+        * With weights for spacing index (not interpretable on item level)
 
-        compute ispc_hsq = rssq(ic_dcom)/(p*hsq_mn).
-        compute ispc_h = sqrt(ispc_hsq).
+        compute ispc_wsq = rssq(ic_dwe)/ w_mn.
+        compute ispc_w = sqrt(ispc_wsq).
 
         * Overall spacing
 
         compute spc_sq  = csum(ispc_sq)/m.
         compute spc = sqrt(spc_sq).
 
-        compute spc_hsq = csum(ispc_hsq)/m.
-        compute spc_h = sqrt(spc_hsq).
+        compute spc_wsq = csum(ispc_wsq)/m.
+        compute spc_w = sqrt(spc_wsq).
 
-        * Dismiss partitions with empty clusters by making spc_h larger than
-        * the initial spacingh (361). If this happens for all possible divisions,
+        * Dismiss partitions with empty clusters by making spc_w larger than
+        * the initial spacingw (361). If this happens for all possible divisions,
         * the number of clusters is too large.
 
         loop c = 1 to p.
             do if c_m(c) = 99.
-                compute spc_h = 50000.
+                compute spc_w = 50000.
             end if.
         end loop.
 
-        do if spc_h < spacingh.
-            compute spacingh = spc_h.
+        do if spc_w < spacingw.
+            compute spacingw = spc_w.
             compute spacing  = spc.
             compute items = {ival_h, ispc}.
             compute clusters = cvalh.
@@ -576,10 +591,10 @@ MATRIX.
 
     END LOOP.
 
-    do if spacingh = 361.
+    do if spacingw = 361.
         print/Title "Cluster-Circ could not finish, at least one of the clusters is empty. Try a smaller number of clusters or include more variables.".
 
-    else if spacingh < 361.
+    else if spacingw < 361.
 
     * Between-cluster spacing
 
@@ -657,7 +672,7 @@ MATRIX.
 
         * Final overall Cluster-Circ indices
         
-        compute overall = {spacingh, spacing,  bcs_p, wcp_p}.
+        compute overall = {spacingw, spacing,  bcs_p, wcp_p}.
 
         ******************************
             *** END CLUSTER-CIRC
@@ -726,7 +741,7 @@ MATRIX.
 
         print overall
             /rlabels = " Population"
-            /clabels = "Spacing (with h²)", "Spacing", "Between-cluster spacing",  "Within-cluster proximity ".
+            /clabels = "Spacing (with h )", "Spacing", "Between-cluster spacing",  "Within-cluster proximity ".
 
         do if sortcorr = 1.
             print /Title = "Cluster-Circ found the intended circumplex clusters in the population.".
@@ -763,6 +778,7 @@ MATRIX.
     get spch_dat /variables spacingw /file = "help_CC_data.sav".
     get n_simu /variables samples /file = "help_CC_data.sav".
     get alpha /variables alpha /file = "help_CC_data.sav".
+    get e /variables e /file = "help_CC_data.sav".
     get p /variables p /file = "help.sav".
     get m /variables m /file = "help.sav".
     get n /variables n /file = "help.sav".
@@ -794,6 +810,7 @@ MATRIX.
     compute h_sqv = rsum(h_sq).
     compute h_rtv = rsum(h_rt).
     compute hsq_mn = msum(h_sq)*(1/m).
+    compute w_mn = hsq_mn.
     compute A_k = inv(h_rt)*A.
 
         * Compute and sort theta: item angles in degrees
@@ -842,7 +859,7 @@ MATRIX.
         *** CLUSTER-CIRC ALGORITHM
     ***********************************************
     
-    compute spacingh = 361.
+    compute spacingw = 361.
 
      LOOP d = 0 to rnd(360*q/p).
 
@@ -997,25 +1014,38 @@ MATRIX.
             end loop.
         end loop.
 
-        * Compute spacing_h for each division
+         * Compute spacing_w for each division
 
         compute ic_dis = make(m,p,0).
         compute space = 360/p.
         compute ic_dev = make(m,p,0).
         compute ic_devp = make(m,p,0).
-        compute ic_dcom = make(m,p,0).
+        compute ic_dw = make(m,p,0).
+        compute ic_dwe = make(m,p,0).
 
         loop i = 1 to m.
             loop c1 = 1 to p.
+
                 compute c2 = ival_h(i,1).
                 compute i_ang =  ival_h(i,3).
                 compute c_ang = cvalh(c1,3).
-                compute i_com = ival_h(i,4).
+                compute i_w = ival_h(i,4).
+                compute e_own = e.
+                compute e_others = (1-e)/(p-1).
                 compute ic_dis(i,c1) = i_ang - c_ang.
                 compute id_dis = (c2-1)*space - (c1-1)*space.
                 compute ic_dev(i,c1) = ic_dis(i,c1) - id_dis.
                 compute ic_devp(i,c1) = ic_dev(i,c1)/space.
-                compute ic_dcom(i,c1) = ic_devp(i,c1)* sqrt(i_com).
+                compute ic_dw(i,c1) = ic_devp(i,c1)* sqrt(i_w).
+
+                do if c1 = c2.
+                    compute ic_dwe(i,c1) = ic_dw(i,c1)*sqrt(e_own).
+                end if.
+
+                do if c1 <> c2.
+                    compute ic_dwe(i,c1) = ic_dw(i,c1)*sqrt(e_others).
+                end if.
+
             end loop.
         end loop.
 
@@ -1024,31 +1054,31 @@ MATRIX.
         compute ispc_sq = rssq(ic_devp)/p.
         compute ispc = sqrt(ispc_sq).
 
-        * With communalities (h) for spacing index (not interpretable on item level)
+        * With weights for spacing index (not interpretable on item level)
 
-        compute ispc_hsq = rssq(ic_dcom)/(p*hsq_mn).
-        compute ispc_h = sqrt(ispc_hsq).
+        compute ispc_wsq = rssq(ic_dwe)/ w_mn.
+        compute ispc_w = sqrt(ispc_wsq).
 
         * Overall spacing
 
         compute spc_sq  = csum(ispc_sq)/m.
         compute spc = sqrt(spc_sq).
 
-        compute spc_hsq = csum(ispc_hsq)/m.
-        compute spc_h = sqrt(spc_hsq).
+        compute spc_wsq = csum(ispc_wsq)/m.
+        compute spc_w = sqrt(spc_wsq).
 
-        * Dismiss partitions with empty clusters by making spc_h larger than
-        * the initial spacingh (361). If this happens for all possible divisions,
+        * Dismiss partitions with empty clusters by making spc_w larger than
+        * the initial spacingw (361). If this happens for all possible divisions,
         * the number of clusters is too large.
 
         loop c = 1 to p.
             do if c_m(c) = 99.
-                compute spc_h = 50000.
+                compute spc_w = 50000.
             end if.
         end loop.
 
-        do if spc_h < spacingh.
-            compute spacingh = spc_h.
+        do if spc_w < spacingw.
+            compute spacingw = spc_w.
             compute spacing  = spc.
             compute items = {ival_h, ispc}.
             compute clusters = cvalh.
@@ -1057,10 +1087,10 @@ MATRIX.
 
     END LOOP.
 
-    do if spacingh = 361.
+    do if spacingw = 361.
         print/Title "Cluster-Circ could not finish, at least one of the clusters is empty. Try a smaller number of clusters or include more variables.".
 
-    else if spacingh < 361.
+    else if spacingw < 361.
 
     * Between-cluster spacing
 
@@ -1138,7 +1168,7 @@ MATRIX.
 
         * Final overall Cluster-Circ indices
         
-        compute overall = {spacingh, spacing,  bcs_p, wcp_p}.
+        compute overall = {spacingw, spacing,  bcs_p, wcp_p}.
 
 
        *******************************************************
@@ -1218,7 +1248,7 @@ MATRIX.
     compute diff_gl = ovrl_all - mn_help.
     compute sd_simu = sqrt((cssq(diff_gl))/n_simu).
 
-    * comparison with spacingh from data: (sim = simu, dat = data)
+    * comparison with spacingw from data: (sim = simu, dat = data)
     * cutoff: according to z-cutoffs, 99%, one-tailed: 2.33
 
     compute spch_sim = mn_simu(1,1).
@@ -1268,23 +1298,23 @@ MATRIX.
 
     print overall
         /rlabels = "Mean", "SD", "Minimum", "Maximum"
-        /clabels = "Spacing (with h²)", "Spacing", "Between-cluster spacing",  "Within-cluster proximity ".
+        /clabels = "Spacing (with h )", "Spacing", "Between-cluster spacing",  "Within-cluster proximity ".
 
      print /Title = "Range of all Cluster-Circ coefficients: 0-1 (0 = perfect circumplex spacing).".
 
-    print /Title = "Recommendation: Circumplex fit of the empirical data is acceptable if 'spacing (weighted with h²) in the empirical data is".
-    print /Title = "not larger than the cutoff value of the distribution of the simulated 'spacing (weighted with h²)' values. ClusterCirc-Simu".
+    print /Title = "Recommendation: Circumplex fit of the empirical data is acceptable if 'spacing (weighted with h ) in the empirical data is".
+    print /Title = "not larger than the cutoff value of the distribution of the simulated 'spacing (weighted with h )' values. ClusterCirc-Simu".
     print /Title = "uses the chosen alpha level and the cumulative probability of the standard normal distribution (one-tailed) to assess model fit.".
 
     print fit
         /clabels = "Model fit"
-        /rlabels = "Spacing (with h²) - data", "Mean spacing (with h²) - simulation","Cutoff value", "Alpha (%)", "Empirical z-value".
+        /rlabels = "Spacing (with h ) - data", "Mean spacing (with h ) - simulation","Cutoff value", "Alpha (%)", "Empirical z-value".
 
     do if comp >= 0.
-        print /Title = "Here: Empirical 'spacing (with h²)' is within the acceptance region of the simulated spc_h distribution:".
+        print /Title = "Here: Empirical 'spacing (with h )' is within the acceptance region of the simulated spc_h distribution:".
      print /Title = "Circumplex fit acceptable.".
     else if comp < 0.
-        print /Title = "Here: Empirical 'spacing (with h²)' exceeds the cutoff value of the simulated spc_h distribution:".
+        print /Title = "Here: Empirical 'spacing (with h )' exceeds the cutoff value of the simulated spc_h distribution:".
     print /Title = "Low circumplex fit.".
     end if.
 
