@@ -11,24 +11,26 @@
     *** ClusterCirc-fix coefficients for user defined item clusters can be compared to ClusterCirc coefficients for item clusters found by ClusterCirc-Data.
 
 *********************************************************************************************************************
-    *** INSERTIONS: FILL IN SPECIFICATIONS OF YOUR DATA 
+    *** INSERTIONS: FILL IN SPECIFICATIONS OF YOUR DATA / DEMONSTRATION ON EXEMPLARY DATA
 *********************************************************************************************************************
     *** Replace each element with "$INSERT" with the relevant information from your data
     
-    *** $INSERT_path:         Working directory/path with the dataset and where the results of Cluster-Circ should be saved (line 31)
-    *** $INSERT_p:               Number of clusters. Minimum = 2 (line 38)
-    *** $INSERT_m:              Number of variables (line 39)
-    *** $INSERT_n:               Sample size (line 40)
-    *** $INSERT_data:         Name of the data file with the items, ending ".sav"; the dataset should only contain the items on which Cluster-Circ should be performed (line 50)
-    *** $INSERT_limits:        Column vector with the position of the last item of each cluster, e.g {6;10;18} for 3 clusters with C1 = i1-i6, C2 = i7-i10, C3 = i11-i18 (line 109)
-    *** w_com:                       Is "TRUE" if items are weighted by their communalities. If different weights should be used, change to "FALSE" (line 42).
+    *** $INSERT_path:         Working directory/path with the dataset and where the results of Cluster-Circ should be saved (line 33)
+    *** $INSERT_p:               Number of clusters. Minimum = 2 (line 40)
+    *** $INSERT_m:              Number of variables (line 41)
+    *** $INSERT_n:               Sample size (line 42)
+    *** $INSERT_data:         Name of the data file with the items, ending ".sav"; the dataset should only contain the items on which Cluster-Circ should be performed (line 52)
+    ***$INSERT_limits:        Column vector with the position of the last item of each cluster, e.g {6;10;18} for 3 clusters with C1 = i1-i6, C2 = i7-i10, C3 = i11-i18 (line 122)
+    *** w_com:                       Is "1" if items are weighted by their communalities. If different weights should be used, change to "0" (line 44).
     *** weights:                      If different weights (other than item communalities) should be used, save a data file called "weights.sav" in the working directory
     ***                                      containing a single vector with weights for the items. Weights need to be in the same order as the variables in the data and should be the same
-    ***                                      weights as used in cc_data for fair comparison of spc_w (is called in line 105).
-    
+    ***                                      weights as used in cc_data for fair comparison of spc_w (is called in line 119).
+    *** e                                  Cluster weight (0 <= e <= 1) defining the importance of within-cluster proximity versus equal cluster spacing. Default is 1/p, weighing all
+    ***                                      clusters equally. e = 0: Maximum importance of between-cluster spacing, within-cluster proximity is ignored. e = 1: Maximum importance of 
+    ***                                      within-cluster proximity, between-cluster spacing is ignored. (line 43)
+.
 
-
-cd " $INSERT_path". 
+cd "$INSERT_path". 
 
 new file.
 dataset name DataSet1 window = front.
@@ -38,8 +40,8 @@ input program.
         compute p =  $INSERT_p.
         compute m = $INSERT_m.
         compute n =  $INSERT_n.
-        string w_com (a10).
-        compute w_com = 'TRUE'.
+        compute e = 1/p.
+        compute w_com = 1.
         end case.
     end loop.
     end file.
@@ -81,7 +83,6 @@ MATRIX.
     get A /file="Data_A.sav".
     get p /variables p /file = "help.sav".
     get m /variables m /file = "help.sav".
-    get q /variables q /file = "help.sav".
     get w_com /variables w_com /file ="help.sav".
 
     *************************
@@ -95,20 +96,43 @@ MATRIX.
     compute hsq_mn = msum(h_sq)*(1/m).
     compute A_k = inv(h_rt)*A.
 
-        * Define item weights:
+        * Define item weights as communalities:
 
-    do if w_com = "TRUE".
+    do if w_com = 1.
         compute w = rsum(h_sq).
+        save w /variables weights /outfile = "weights.sav".
     end if.
 
-    do if w_com = "FALSE".
-        get w /file = "weights.sav".
-    end if.
+END MATRIX.
+
+set mxloops = 300000000000.
+set mdisplay TABLES.
+
+get file = "Data_A.sav".
+
+MATRIX.
+
+    get A /file="Data_A.sav".
+    get p /variables p /file = "help.sav".
+    get m /variables m /file = "help.sav".
+    get e /variables e /file = "help.sav".
+    get w /variables weights /file ="weights.sav".
 
     compute w_mn = csum(w)/m.
     compute limits = $INSERT_limits.
 
-        * Compute and sort theta: item angles in degrees
+    *************************
+        *** PREPARATION
+    *************************
+        * Kaiser-normalization of loadings for simpler computation of angles
+
+    compute h_sq = mdiag(rssq(A)).
+    compute h_rt = sqrt(h_sq).
+    compute h_rtv = rsum(h_rt).
+    compute hsq_mn = msum(h_sq)*(1/m).
+    compute A_k = inv(h_rt)*A.
+
+         * Compute and sort theta: item angles in degrees
         * r = radians, p = positive
         
     compute pi=4*ARTAN(1).
@@ -179,7 +203,7 @@ MATRIX.
                 compute c_ang(c) = (c_max(c)+c_min(c))/2.
                 compute c_rng(c) = c_max(c)-c_min(c).
             end if.
-      
+
             * Special case: Cluster at approx. 0° could have a range of > 180.
             * Change item angles with help objects.
 
@@ -271,18 +295,31 @@ MATRIX.
         compute ic_dev = make(m,p,0).
         compute ic_devp = make(m,p,0).
         compute ic_dw = make(m,p,0).
+        compute ic_dwe = make(m,p,0).
 
         loop i = 1 to m.
             loop c1 = 1 to p.
+
                 compute c2 = ival(i,1).
                 compute i_ang =  ival(i,3).
                 compute c_ang = cval(c1,3).
                 compute i_w = ival(i,4).
+                compute e_own = e.
+                compute e_others = (1-e)/(p-1).
                 compute ic_dis(i,c1) = i_ang - c_ang.
                 compute id_dis = (c2-1)*space - (c1-1)*space.
                 compute ic_dev(i,c1) = ic_dis(i,c1) - id_dis.
                 compute ic_devp(i,c1) = ic_dev(i,c1)/space.
                 compute ic_dw(i,c1) = ic_devp(i,c1)* sqrt(i_w).
+
+                do if c1 = c2.
+                    compute ic_dwe(i,c1) = ic_dw(i,c1)*sqrt(e_own).
+                end if.
+
+                do if c1 <> c2.
+                    compute ic_dwe(i,c1) = ic_dw(i,c1)*sqrt(e_others).
+                end if.
+
             end loop.
         end loop.
 
@@ -291,9 +328,9 @@ MATRIX.
         compute ispc_sq = rssq(ic_devp)/p.
         compute ispc = sqrt(ispc_sq).
 
-        * With weights  for spacing index (not interpretable on item level)
+        * With weights for spacing index (not interpretable on item level)
 
-        compute ispc_wsq = rssq(ic_dw)/(p*w_mn).
+        compute ispc_wsq = rssq(ic_dwe)/ w_mn.
         compute ispc_w = sqrt(ispc_wsq).
 
         * Overall spacing
